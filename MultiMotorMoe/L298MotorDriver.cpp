@@ -6,7 +6,12 @@
 
 
 L298MotorDriver::L298MotorDriver(
-	int speedPin, int in13, int in24, int potPin, int tolerance, bool printStatements)
+	char id, int speedPin, 
+	int in13, int in24, 
+	int potPin, int tolerance, 
+	int potMin, int potMax,
+	bool printStatements)
+	: _id(id)
 {
 	this->_enAB = speedPin;
 	this->_in13 = in13;
@@ -19,34 +24,48 @@ L298MotorDriver::L298MotorDriver(
 	this->_printStatements = printStatements;
 
 	this->_rawSpeed = 0;
-	this->_rawPosCmd = 0;
-	this->_speed = 50;
+	this->_rawPosCmd = 100;
+
+	this->_speed = 100;
 
 	this->_stmt = -1;
+
+	this->_potMin = potMin;
+	this->_potMax = potMax;
 
 	pinMode(this->_enAB, OUTPUT);
 	pinMode(this->_in13, OUTPUT);
 	pinMode(this->_in24, OUTPUT);
 
-	digitalWrite(this->_enAB, LOW);
+	analogWrite(this->_enAB, 0);
 	digitalWrite(this->_in13, LOW);
 	digitalWrite(this->_in24, LOW);
 }
 
-void L298MotorDriver::update()
+bool L298MotorDriver::update()
 {
+	static bool printed = false;
+
 	_tNow = millis();
 	if (_printStatements && (_tNow - _tPrev > _updatePeriod)) {
 		_tPrev = _tNow;
 
-		Serial.print("stmt: ");
+		Serial.print("Id: ");
+		Serial.print(_id);
+
+		Serial.print(", stmt: ");
 		Serial.print(_stmt);
 
-		Serial.print(", actualPosCommand: ");
+		Serial.print(", actualPosCmd: ");
 		Serial.print(_actualPosCmd);
 
-		Serial.print(", Raw Motor Position: ");
+		Serial.print(", Raw Motor Pos: ");
 		Serial.println(analogRead(_pot));
+
+		printed = true;
+	} else
+	{
+		printed = false;
 	}
 
 	int actualPos = analogRead(_pot);
@@ -68,6 +87,8 @@ void L298MotorDriver::update()
 		analogWrite(_enAB, 0);
 		_stmt = 2;
 	}
+
+	return printed;
 }
 
 void L298MotorDriver::parseCommand(char cmd, String& args)
@@ -83,7 +104,9 @@ void L298MotorDriver::parseCommand(char cmd, String& args)
 
 			_actualPosCmd = map(_rawPosCmd, 0, 100, _motMinPot, _motMaxPot);
 
-			Serial.print("Received pos command: ");
+			Serial.print("Id: ");
+			Serial.print(_id);
+			Serial.print(", Received pos command: ");
 			Serial.print(_rawPosCmd);
 			Serial.print(", actualPosCommand: ");
 			Serial.print(_actualPosCmd);
@@ -95,12 +118,16 @@ void L298MotorDriver::parseCommand(char cmd, String& args)
 	case 's': // speed
 		_rawSpeed = args.toInt();
 		if (_rawSpeed < 0 || _rawSpeed > 100) {
-			Serial.println("Speed out of range.  Choose between 0 and 100.");
+			Serial.print("Id: ");
+			Serial.print(_id);
+			Serial.println(", Speed out of range.  Choose between 0 and 100.");
 			_speed = 0;
 		}
 		else {
 			_speed = map(_rawSpeed, 0, 100, 0, 255);
-			Serial.print("Raw speed: ");
+			Serial.print("Id: ");
+			Serial.print(_id);
+			Serial.print(", Raw speed: ");
 			Serial.print(_rawSpeed);
 			Serial.print(", Speed mapped to: ");
 			Serial.println(_speed);
@@ -110,16 +137,22 @@ void L298MotorDriver::parseCommand(char cmd, String& args)
 	case 't': // tolerance
 		_tolerance = args.toInt();
 		if (_tolerance < 0 || _tolerance > _maxTolerance) {
-			Serial.println("tolerance out of range.  Choose between 0 and 10.");
+			Serial.print("Id: ");
+			Serial.print(_id);
+			Serial.println(", tolerance out of range.  Choose between 0 and 10.");
 		}
 		else {
-			Serial.print("Tolerance set to: ");
+			Serial.print("Id: ");
+			Serial.print(_id);
+			Serial.print(", Tolerance set to: ");
 			Serial.println(_tolerance);
 		}
 		break;
 
 	case 'p': // print values
-		Serial.print("position command: ");
+		Serial.print("Id: ");
+		Serial.print(_id);
+		Serial.print(", position command: ");
 		Serial.print(_actualPosCmd);
 		Serial.print(", current position: ");
 		Serial.print(analogRead(_pot));
@@ -130,7 +163,9 @@ void L298MotorDriver::parseCommand(char cmd, String& args)
 		break;
 
 	default:
-		Serial.print("command: '");
+		Serial.print("Id: ");
+		Serial.print(_id);
+		Serial.print(", command: '");
 		Serial.print(cmd);
 		Serial.println("' not supported.");
 		break;
@@ -140,4 +175,9 @@ void L298MotorDriver::parseCommand(char cmd, String& args)
 void L298MotorDriver::printStatements(bool flag)
 {
 	_printStatements = flag;
+}
+
+char L298MotorDriver::getId() const
+{
+	return _id;
 }

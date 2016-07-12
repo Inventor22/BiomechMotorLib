@@ -12,14 +12,20 @@
 class L298MotorDriver
 {
 public:
-	L298MotorDriver(int speedPin, int in13, int in24, int potPin, int tolerance, bool printStatement = true);
+	L298MotorDriver(
+		char id, int speedPin, 
+		int in13, int in24, 
+		int potPin, int tolerance, 
+		int potMin, int potMax,
+		bool printStatement = true);
 
-	void update();
+	bool update();
 
 	void printStatements(bool flag);
 
 	void parseCommand(char cmd, String& args);
 
+	char getId() const;
 
 private:
 	int _enAB, _in13, _in24, _pot;
@@ -32,7 +38,11 @@ private:
 	int _rawSpeed;
 	int _speed;
 
+	int _potMin, _potMax;
+
 	bool _printStatements;
+
+	const char _id;
 
 	static const uint32_t _updatePeriod = 1000;
 	static const int _maxTolerance = 10;
